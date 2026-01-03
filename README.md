@@ -1,6 +1,3 @@
-# CSCE-5575-HW-2-Template <br /> Instructor: Beddhu Murali
-Second Homework template for blockchain course CSCE 4575/5575
-
 # Introduction
 In this homework, you will be using smart contracts provided by other parties in your smart contract. Think it as using libraries in programming languages such as Java or C++.
 
@@ -78,4 +75,3 @@ In order to send ETH to the functions that require it using Foundry, you can use
 ```bash
 cast call <contract_address> "your_function()" --private-key <private_key> --value 0.001ether  # Or any other ether value
 ```
-
