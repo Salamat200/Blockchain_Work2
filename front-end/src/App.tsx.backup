@@ -1,0 +1,260 @@
+import { useEffect, useState } from 'react';
+import './App.css';
+import { BrowserProvider, ethers } from "ethers";
+
+declare let window: any
+
+function App() {
+  const [address, setAddress] = useState<string>('');
+  const [balance, setBalance] = useState<string>('');
+  const [num, setNum] = useState<number>(0);
+  const [newNum, setNewNum] = useState<string>('');
+  const [contractBalance, setContractBalance] = useState<string>('');
+  const [owner, setOwner] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+  
+  // Minimal ABI with only the functions we actually use
+  const CONTRACT_ABI = [
+    {
+      "inputs": [],
+      "name": "num",
+      "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "owner",
+      "outputs": [{"internalType": "address", "name": "", "type": "address"}],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "firstNumElements",
+      "outputs": [{"internalType": "string[]", "name": "", "type": "string[]"}],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "lastNumElements",
+      "outputs": [{"internalType": "string[]", "name": "", "type": "string[]"}],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [{"internalType": "uint256", "name": "_newNum", "type": "uint256"}],
+      "name": "updateNumber",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "withdrawFunds",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getContractBalance",
+      "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ];
+
+  const handleConnectWallet = async () => {
+    if (window.ethereum) {
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const provider = new BrowserProvider(window.ethereum);
+        const signer = await provider.getSigner();
+        const userAddress = await signer.getAddress();
+        const userBalance = await provider.getBalance(userAddress);
+        
+        setAddress(userAddress);
+        setBalance(ethers.formatEther(userBalance));
+        
+        await loadContractData(signer);
+      } catch (error) {
+        console.error('Error connecting wallet:', error);
+      }
+    } else {
+      alert('Please install MetaMask!');
+    }
+  };
+
+  const loadContractData = async (signer: any) => {
+    try {
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      
+      const [currentNum, contractOwner, balance] = await Promise.all([
+        contract.num(),
+        contract.owner(),
+        contract.getContractBalance()
+      ]);
+      
+      setNum(Number(currentNum));
+      setOwner(contractOwner);
+      setContractBalance(ethers.formatEther(balance));
+    } catch (error) {
+      console.error('Error loading contract data:', error);
+    }
+  };
+
+  const handleFirstNumElements = async () => {
+    if (!window.ethereum) return;
+
+    setLoading(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      
+      const tx = await contract.firstNumElements({ value: ethers.parseEther("0.001") });
+      await tx.wait();
+      
+      alert('firstNumElements called successfully!');
+      await loadContractData(signer);
+    } catch (error: any) {
+      console.error('Error:', error);
+      alert(`Error: ${error.reason || error.message}`);
+    }
+    setLoading(false);
+  };
+
+  const handleLastNumElements = async () => {
+    if (!window.ethereum) return;
+
+    setLoading(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      
+      const tx = await contract.lastNumElements({ value: ethers.parseEther("0.002") });
+      await tx.wait();
+      
+      alert('lastNumElements called successfully!');
+      await loadContractData(signer);
+    } catch (error: any) {
+      console.error('Error:', error);
+      alert(`Error: ${error.reason || error.message}`);
+    }
+    setLoading(false);
+  };
+
+  const handleUpdateNumber = async () => {
+    if (!window.ethereum) return;
+
+    const newNumValue = parseInt(newNum);
+    if (isNaN(newNumValue) || newNumValue < 0 || newNumValue > 10) {
+      alert('Please enter a valid number between 0 and 10');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      
+      const tx = await contract.updateNumber(newNumValue);
+      await tx.wait();
+      
+      alert('Number updated successfully!');
+      setNewNum('');
+      await loadContractData(signer);
+    } catch (error: any) {
+      console.error('Error:', error);
+      alert(`Error: ${error.reason || error.message}`);
+    }
+    setLoading(false);
+  };
+
+  const handleWithdrawFunds = async () => {
+    if (!window.ethereum) return;
+
+    setLoading(true);
+    try {
+      const provider = new BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+      
+      const tx = await contract.withdrawFunds();
+      await tx.wait();
+      
+      alert('Funds withdrawn successfully!');
+      await loadContractData(signer);
+    } catch (error: any) {
+      console.error('Error:', error);
+      alert(`Error: ${error.reason || error.message}`);
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="App">
+      <h1>Homework 2 - Array Slicing Contract</h1>
+      
+      <div className="wallet-section">
+        {address ? (
+          <div>
+            <p><strong>Your Address:</strong> {address}</p>
+            <p><strong>Your Balance:</strong> {balance} ETH</p>
+            <p><strong>Contract Owner:</strong> {owner}</p>
+          </div>
+        ) : (
+          <button onClick={handleConnectWallet}>Connect Wallet</button>
+        )}
+      </div>
+
+      <div className="contract-section">
+        <h2>Contract Information</h2>
+        <p><strong>Current Number (num):</strong> {num}</p>
+        <p><strong>Contract Balance:</strong> {contractBalance} ETH</p>
+      </div>
+
+      <div className="actions-section">
+        <h2>Contract Actions</h2>
+        
+        <div className="action-group">
+          <h3>Payable Functions</h3>
+          <button onClick={handleFirstNumElements} disabled={loading}>
+            {loading ? 'Processing...' : 'Get First num Elements (0.001 ETH)'}
+          </button>
+          <button onClick={handleLastNumElements} disabled={loading}>
+            {loading ? 'Processing...' : 'Get Last num Elements (0.002 ETH)'}
+          </button>
+        </div>
+
+        <div className="action-group">
+          <h3>Owner Functions</h3>
+          <div>
+            <input
+              type="number"
+              value={newNum}
+              onChange={(e) => setNewNum(e.target.value)}
+              placeholder="Enter new number (0-10)"
+              min="0"
+              max="10"
+            />
+            <button onClick={handleUpdateNumber} disabled={loading || address !== owner}>
+              {loading ? 'Updating...' : 'Update Number'}
+            </button>
+          </div>
+          <button onClick={handleWithdrawFunds} disabled={loading || address !== owner}>
+            {loading ? 'Withdrawing...' : 'Withdraw Funds'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;
